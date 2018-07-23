@@ -18,21 +18,21 @@ DiscreteDivisionRsys[a0_, b0_] :=
     step[{
       cmp[a,b]
     }],
-	step[{
-	  ifGE[{
-	    sub[a,b,anext],
-	    add[q,one,qnext]
-	  }]
-	}],
-	step[{
-	  ifGE[{
-	    ld[anext,a],
-	    ld[qnext,q]
-	  }],
-	  ifLT[{
-	    ld[a,r]
-	  }]
-	}]
+    step[{
+      ifGE[{
+        sub[a,b,anext],
+        add[q,one,qnext]
+      }]
+    }],
+    step[{
+      ifGE[{
+        ld[anext,a],
+        ld[qnext,q]
+      }],
+      ifLT[{
+        ld[a,r]
+      }]
+    }]
   };
   Return[crn];
 )
