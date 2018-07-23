@@ -53,7 +53,7 @@ RxnsToRxnls::usage=
 SolveEquilibrium::usage=
 "Calculates concentrations of species at equilibrium"
 RxnsysToSrxnsys::usage=
-" Produces reactions in srxn[[reaction index],{x1,x2},{x3},k] format ("structured reaction system"). Removes any other statements. \
+" Produces reactions in srxn[[reaction index],{x1,x2},{x3},k] format (\"structured reaction system\"). Removes any other statements. \
   reaction index is 1-based"
 
 (*To use instead of Sequence in functions with Hold attribute but not HoldSequence,

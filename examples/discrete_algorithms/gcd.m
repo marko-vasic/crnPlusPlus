@@ -1,16 +1,18 @@
+Get[NotebookDirectory[]<>"init.m"];
+
 GCDRsys[a0_, b0_] :=
   (
     crn = {
       conc[a,a0], 
       conc[b,b0],
       step[{
-        Ld[a, atmp],
-        Ld[b, btmp], 
-        Cmp[a,b] 
+        ld[a, atmp],
+        ld[b, btmp], 
+        cmp[a,b]
       }],
       step[{
-        IfGT[{ Sub[atmp,btmp,a] }],
-        IfLT[{ Sub[btmp,atmp,b] }]
+        ifGT[{ sub[atmp,btmp,a] }],
+        ifLT[{ sub[btmp,atmp,b] }]
       }]
     };
     Return[crn];
@@ -22,22 +24,22 @@ GCDRsysErrorCorrecting[a0_, b0_] :=
         conc[a,a0],
         conc[b,b0],
         step[{
-            Ld[a, atmp],
-            Ld[b, btmp]
+            ld[a, atmp],
+            ld[b, btmp]
         }],
         step[{
-            Cmp[a,b]
+            cmp[a,b]
         }],
         step[{
-            IfGT[{
-                Sub[atmp,btmp,a]
+            ifGT[{
+                sub[atmp,btmp,a]
             }],
-            IfLT[{
-                Sub[btmp,atmp,b]
+            ifLT[{
+                sub[btmp,atmp,b]
             }],
-            IfEQ[{
-                Ld[atmp,a],
-                Ld[btmp,b]
+            ifEQ[{
+                ld[atmp,a],
+                ld[btmp,b]
             }]
         }]
     };
@@ -52,24 +54,24 @@ GCDRsysWithOutput[a0_, b0_] :=
         conc[outTmp, 1],
         conc[outFlag, 0],        
         step[{
-            Ld[a, atmp],
-            Ld[b, btmp],
-            Ld[outTmp, outFlag]
+            ld[a, atmp],
+            ld[b, btmp],
+            ld[outTmp, outFlag]
         }],
         step[{
-            Cmp[a,b]
+            cmp[a,b]
         }],
         step[{
-            IfGT[{
-                Sub[atmp,btmp,a]
+            ifGT[{
+                sub[atmp,btmp,a]
             }],
-            IfEQ[{
-                IfPresent[outFlag, {Ld[atmp,out]}],
+            ifEQ[{
+                ifPresent[outFlag, {ld[atmp,out]}],
                 (* can also use destructive load r0tmp -> out *)
                 rxn[outTmp, 0, 1]
             }],
-            IfLT[{
-                Sub[btmp,atmp,b]
+            ifLT[{
+                sub[btmp,atmp,b]
             }]
         }]
     };

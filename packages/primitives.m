@@ -10,20 +10,20 @@ EvaluateError::usage = "Evaluates error between simulation results of rsys and i
 
 (* Constants *)
 StepMacro = Global`step;
-LdMacro = Global`Ld;
-AddMacro = Global`Add;
-SubMacro = Global`Sub;
-MulMacro = Global`Mul;
-DvdMacro = Global`Dvd;
-SqrMacro = Global`Sqr;
-AMMacro = Global`AM;
-CmpMacro = Global`Cmp;
-GtMacro = Global`IfGT;
-GeMacro = Global`IfGE;
-EqMacro = Global`IfEQ;
-LeMacro = Global`IfLE;
-LtMacro = Global`IfLT;
-IfPresentMacro = Global`IfPresent;
+LdMacro = Global`ld;
+AddMacro = Global`add;
+SubMacro = Global`sub;
+MulMacro = Global`mul;
+DivMacro = Global`div;
+SqrMacro = Global`sqrt;
+AMMacro = Global`am;
+CmpMacro = Global`cmp;
+GtMacro = Global`ifGT;
+GeMacro = Global`ifGE;
+EqMacro = Global`ifEQ;
+LeMacro = Global`ifLE;
+LtMacro = Global`ifLT;
+IfPresentMacro = Global`ifPresent;
 
 XgtyFlag = Global`xgty;
 XltyFlag = Global`xlty;
@@ -36,7 +36,6 @@ NormalizeToFlagsMacro = Global`NormalizeToFlags;
 FlagsAMMacro = Global`FlagsAM;
 ComparisonOffset = Global`cmpOffset;
 
-(* TODO: Delete this one, it's subset of ExpandRsys *)
 ExpandDiscreteRsys[rsys_] :=
     (
         Module[ {processedRsys},
@@ -70,7 +69,7 @@ ExpandRsys[rsys_] :=
             processedRsys = processedRsys/.AddMacro[a_,b_,c_]:>Add[a,b,c];
             processedRsys = processedRsys/.SubMacro[a_,b_,c_]:>Sub[a,b,c];
             processedRsys = processedRsys/.MulMacro[a_,b_,c_]:>Mul[a,b,c];
-            processedRsys = processedRsys/.DvdMacro[a_,b_,c_]:>Dvd[a,b,c];
+            processedRsys = processedRsys/.DivMacro[a_,b_,c_]:>Dvd[a,b,c];
             processedRsys = processedRsys/.SqrMacro[a_,b_]:>Sqr[a,b];
             processedRsys = processedRsys/.AMMacro[x_, y_]:>AM[x, y];
             processedRsys = processedRsys/.NormalizeToFlagsMacro[x_, y_]:>NormalizeToFlags[x, y];
@@ -379,7 +378,7 @@ EvaluateError[rsys_,tmax_] :=
               Cases[reactions,AddMacro[a_,b_,c_]:>Set[val[c] , val[a]+val[b]]];
               Cases[reactions,SubMacro[a_,b_,c_]:>Set[val[c] , Max[0,val[a]-val[b]]]];
               Cases[reactions,MulMacro[a_,b_,c_]:>Set[val[c] , val[a]*val[b]]];
-              Cases[reactions,DvdMacro[a_,b_,c_]:>Set[val[c] , val[a]/val[b]]];
+              Cases[reactions,DivMacro[a_,b_,c_]:>Set[val[c] , val[a]/val[b]]];
               Cases[reactions,SqrMacro[a_,b_]:>Set[val[b] , Sqrt[val[a]]]];
             ];
             If[gt,Cases[reactions,GtMacro[rxns_]:>EvaluateCorrect[rxns]]];

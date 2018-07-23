@@ -7,57 +7,78 @@
 (* ::Section:: *)
 (*Public interface specification*)
 
-
 Needs["CRNSimulator`"]
 BeginPackage["utils`",{"CRNSimulator`"}];
 
-
 PhasifyRsys::usage = "Phasifies rsys by adding oscillator species as catalysts"
 
-MakeOscillatorSpecies::usage = "Creates a CRN that implements oscillatory behavior. \
-phases_Integer - denotes how many different phases oscillator has \
-concentration_ - concentration of oscillator species \
-speed_ - reaction speed constant of oscillator species";
-GetOscillatorSpeciesName::usage = "Get a name of oscillator species for a given phase number"
-SimulateAndPlotRxnSys::usage = "Simulates rxn system and plots the results. \
-rsys_List - represents rxn system \
-speciesToPlot_List - represent a List of species that are to be plot. \
-tmax_ - simulation will be done for t=[0,tmax]";
-PlotRxnSys::usage = "Plots the simulation results of rxn system for all t present in sol \
-sol_ - Contains results of simulation to be plot \
-speciesToPlot_List - represent a List of species that are to be plot.";
-PlotRxnSys::usage = "Plots the simulation results of rxn system \
-sol_ - Contains results of simulation to be plot \
-speciesToPlot_List - represent a List of species that are to be plot. \
-tmax_ - plot results for range t=[0,tmax]. Not sol has to contain results for that range of t.";
-EvaluateRxnAtPoint::usage = " Evaluates value of reaction at a given point \
-sol_ - Rxn simulation results \
-species_ - Species \
-t_ - Point in time";
+MakeOscillatorSpecies::usage = "Creates a CRN that implements the oscillatory behavior. \
+Arguments: \
+  phases_Integer - number of phases of the oscillator. \
+  concentration_ - concentration of the oscillator species \
+  speed_ - the reaction speed constant of the oscillator species";
+
+GetOscillatorSpeciesName::usage = "Get a name of the oscillator species for a given phase number"
+
+SimulateAndPlotRxnSys::usage = "Simulates the reaction system and plots the results. \
+Arguments: \
+  rsys_List - represents the reaction system \
+  speciesToPlot_List - a list of species that are to be plot. \
+  tmax_ - the end time of the simulation - results will be simulated for t=[0,tmax]";
+
+PlotRxnSys::usage = "Plots the simulation results of the reaction system for all t present in sol \
+Arguments: \
+  sol_ - Contains results of simulation to be plot. \
+  speciesToPlot_List - represent a List of species that are to be plot.";
+
+PlotRxnSys::usage = "Plots the simulation results of the reaction system \
+Arguments: \
+  sol_ - Contains results of simulation to be plot \
+  speciesToPlot_List - represent a List of species that are to be plot. \
+  tmax_ - plot results for range t=[0,tmax]. Error if the Not does not contain results for that range of t.";
+
+EvaluateRxnAtPoint::usage = " Evaluates a value of the reaction at a given point \
+Arguments: \
+  sol_ - Rxn simulation results \
+  species_ - Species \
+  t_ - Point in time";
+
 GenerateAbsenceIndicator::usage = "Generates a set of reactions producing absence indicator species \
 for a given species; i.e. absence indicator species should be present when given species are not. \
-species_ - Name of species for which absence indicator is generated \
-rs_ - Rate of producing absence species \
-rf_ - Rate of consuming absence species in presence of target species \
+Arguments: \
+  species_ - Name of species for which absence indicator is generated \
+  rs_ - Rate of producing absence species \
+  rf_ - Rate of consuming absence species in presence of target species \
 Generally rf/rs should be high, to ensure that absence species are present when target species are not.";
 GetAbsenceSpeciesName::usage = "Gets the name of absence species for a given target species. \
-TODO: Not the most convenient way to usage, and we can think of the better way.";
+pTODO: Not the most convenient way to usage, and we can think of the better way.";
+
 GenerateDimerizedAbsenceIndicator::usage = "Similar to GenerateAbsenceIndicator, but absence species \
 are consumed at a significantly slower rate. It is better indicator of 'absence' but is more slowly generated.";
+
 GetDimerizedAbsenceSpeciesName::usage = "Gets the name of dimerized absence species for a given target species. \
 TODO: Not the most convenient way to usage, and we can think of the better way.";
+
 TriggerIfAbsent::usage = "Adds absence indicator into the reaction such that it simulates \
 reaction happening only if given species are absent. \
-species_ - Species that should be absent of reaction to occur. \
-rxns_ - System of reactions that should be triggered only on absence.";
+Arguments: \
+  species_ - Species that should be absent of reaction to occur. \
+  rxns_ - System of reactions that should be triggered only on absence.";
+
 TriggerIfDimerizedAbsent::usage = "Similar to TriggerIfAbsent, but uses Dimerized Absence Indicator";
+
 TriggerIfPresent::usage = "Reaction occurs in presence of predefined catalysts species \
-catalystsSpecies_ - Catalysts species \
-rxns_ - Rxn system that should react only in a presence of catalystsSpecies";
+Arguments: \
+  catalystsSpecies_ - Catalysts species \
+  rxns_ - Rxn system that should react only in a presence of catalystsSpecies";
+
 srxn::usage = "Represents a reaction in the following form: srxn[[reaction index],{x1,x2},{x3},k] format ('structured reaction format').";
+
 flux::usage = "Represents flux variables.";
-IsMinFunc::usage = "Checks if species implement max function"
-IsMaxFunc::usage = "Checks if species implement min function"
+
+IsMinFunc::usage = "Heuristic check if species implement max function"
+
+IsMaxFunc::usage = "Heuristic check if species implement min function"
 
 Begin["`Private`"];
 
@@ -109,15 +130,6 @@ PhasifyRsys[rsys_] :=
         ]
     )
 
-(* Deprecated
-phase[phase_,rxns_] :=
-    (
-        (** not sure why Flatten necessary **)
-        Sequence@@Flatten[rxns/.rxn[rs_,ps_,k_]->rxn[Evaluate[x[3*phase]+rs],Evaluate[x[3*phase]+ps],k]]
-    );
-*)
-
-
 SimulateAndPlotRxnSys[rsys_List, speciesToPlot_List, tmax_] :=
     Module[ {sol, species, plotter},
         (
@@ -129,7 +141,6 @@ SimulateAndPlotRxnSys[rsys_List, speciesToPlot_List, tmax_] :=
         )
     ]
 
-
 PlotRxnSys[sol_, speciesToPlot_List, tmax_] :=
     Module[ {species, plotter},
         (
@@ -139,7 +150,6 @@ PlotRxnSys[sol_, speciesToPlot_List, tmax_] :=
             Return[Plot[plotter,{t,0,tmax},PlotRange->{0,All}]];
         )
     ]
-
 
 PlotRxnSys[sol_, speciesToPlot_List] :=
     Module[ {tmax, plot},
@@ -151,7 +161,6 @@ PlotRxnSys[sol_, speciesToPlot_List] :=
         )
     ]
 
-
 EvaluateRxnAtPoint[sol_,species_,t_] :=
     Module[ {plotter, fun},
         (
@@ -160,7 +169,6 @@ EvaluateRxnAtPoint[sol_,species_,t_] :=
             Return[fun[t]];
         )
     ]
-
 
 GenerateAbsenceIndicator[species_, rs_ : 1, rf_ : 1000] :=
     Module[ {tmpSpecies, absenceIndicatorSpecies},
@@ -177,29 +185,30 @@ GenerateAbsenceIndicator[species_, rs_ : 1, rf_ : 1000] :=
             }]
         )
     ]
+
 GetAbsenceSpeciesName[species_] :=
     (
         StringForm["`1``2`", species, "AbsenceIndicator"]
     )
+
 TriggerIfAbsent[species_,rxns_] :=
     Module[ {absenceSpecies,i,absenceExpression},
         (
-        	If[ToString[Head[species]] != "List",
-         		(* if species is symbol *)
-         		absenceExpression = GetAbsenceSpeciesName[species],
-         		(* if species is list *)
-            	For[i = 1, i <= Length[species], i++,
-              		absenceSpecies = GetAbsenceSpeciesName[species[[i]]];
-              		If[i == 1,
-                		absenceExpression = absenceSpecies;,
-                		absenceExpression = Evaluate[absenceExpression + absenceSpecies];
-              		]; 
+            If[ ToString[Head[species]] != "List",
+                 (* if species is symbol *)
+                absenceExpression = GetAbsenceSpeciesName[species],
+                 (* if species is list *)
+                For[i = 1, i <= Length[species], i++,
+                      absenceSpecies = GetAbsenceSpeciesName[species[[i]]];
+                      If[ i == 1,
+                          absenceExpression = absenceSpecies;,
+                          absenceExpression = Evaluate[absenceExpression + absenceSpecies];
+                      ]; 
                  ];
             ];
-	        Sequence@@Flatten[rxns/.rxn[rs_,ps_,k_]->rxn[Evaluate[absenceExpression + rs],Evaluate[absenceExpression + ps],k]]
+            Sequence@@Flatten[rxns/.rxn[rs_,ps_,k_]->rxn[Evaluate[absenceExpression + rs],Evaluate[absenceExpression + ps],k]]
         )
     ]
-
 
 GenerateDimerizedAbsenceIndicator[species_, rs_ : 1, rf_ : 1000] :=
     Module[ {tmpSpecies, absenceIndicatorSpecies, dimerizedAbsenceIndicatorSpecies},
@@ -216,29 +225,30 @@ GenerateDimerizedAbsenceIndicator[species_, rs_ : 1, rf_ : 1000] :=
             }]
         )
     ]
+
 GetDimerizedAbsenceSpeciesName[species_] :=
     (
         StringForm["`1``2`", species, "DimerizedAbsenceIndicator"]
     )
+
 TriggerIfDimerizedAbsent[species_,rxns_] :=
-    Module[ 
-    	{absenceSpecies,
-	    i,
-    	absenceExpression},
+    Module[ {absenceSpecies,
+        i,
+        absenceExpression},
         (
-         	If[ToString[Head[species]] != "List",
-         		(* if species is symbol *)
-         		absenceExpression = GetDimerizedAbsenceSpeciesName[species],
-         		(* if species is list *)
-            	For[i = 1, i <= Length[species], i++,
-              		absenceSpecies = GetDimerizedAbsenceSpeciesName[species[[i]]];
-              		If[i == 1, 
-                		absenceExpression = absenceSpecies;,
-                		absenceExpression = Evaluate[absenceExpression + absenceSpecies];
-              		]; 
-                 ];
-            ];
-            Sequence@@Flatten[rxns/.rxn[rs_,ps_,k_]->rxn[Evaluate[absenceExpression + rs],Evaluate[absenceExpression + ps],k]]
+             If[ ToString[Head[species]] != "List",
+                 (* if species is symbol *)
+                 absenceExpression = GetDimerizedAbsenceSpeciesName[species],
+                 (* if species is list *)
+                 For[i = 1, i <= Length[species], i++,
+                       absenceSpecies = GetDimerizedAbsenceSpeciesName[species[[i]]];
+                       If[ i == 1,
+                           absenceExpression = absenceSpecies;,
+                           absenceExpression = Evaluate[absenceExpression + absenceSpecies];
+                       ]; 
+                  ];
+             ];
+             Sequence@@Flatten[rxns/.rxn[rs_,ps_,k_]->rxn[Evaluate[absenceExpression + rs],Evaluate[absenceExpression + ps],k]]
         )
     ]
 
@@ -246,7 +256,7 @@ TriggerIfPresent[catalystsSpecies_,rxns_] :=
     (
         Sequence@@Flatten[rxns/.rxn[rs_,ps_,k_]->rxn[Evaluate[catalystsSpecies+rs],Evaluate[catalystsSpecies+ps],k]]
     )
-    
+
 IsMaxFunc[sol_, a_, b_, max_] :=
     Module[ {tmax, a0, b0, maxValue},
         a0 = EvaluateRxnAtPoint[sol,a,0];
@@ -271,9 +281,7 @@ IsMinFunc[sol_, a_, b_, min_] :=
         ];
     ]
 
-
 (** Private **)
 End[];
-
 
 EndPackage[];
