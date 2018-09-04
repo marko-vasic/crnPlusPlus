@@ -27,8 +27,8 @@ publication, please cite our DNA publication:
 
 ## Requirements
 
-Mathematica version 11.2 or higher. Older versions of Mathematica
-might be supported as well, but we have not tested.
+Mathematica version 11.2 or higher. Earlier versions of Mathematica
+might be supported, but project was not tested under earlier versions.
 
 ## Project Structure
 
@@ -36,9 +36,10 @@ Examples of the CRN++ programs are under the *examples*
 directory. Each example is divided into two files, mathematica ('.m')
 file containing the core part of the code (actual program), and
 notebook ('.nb') file containing the 'glue' code for simulating and
-plotting the results. User can simply open the notebook file and see
-simulation results of the program. The CRN++ compiler and simulation
-framework are stored in the *packages* directory.
+plotting the results. User can simply open the notebook file, see
+simulation results of the program, and update the simulation
+parameters if desired. The CRN++ compiler and simulation framework are
+stored in the *packages* directory.
 
 ## Writing New Programs
 
