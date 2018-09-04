@@ -1,10 +1,14 @@
 # CRN++: Molecular Programming Language
 
-This project contains implementation of the CRN++ language. CRN++, is
-a language for programming deterministic (mass-action) chemical
-kinetics to perform computation. This project contains compiler,
-translating CRN++ programs into chemical reactions, as well as
-simulation framework.
+This project contains implementation of the CRN++ language. CRN++ is a
+language for programming deterministic (mass-action) chemical kinetics
+to perform computation. This project contains a compiler, translating
+CRN++ programs into chemical reactions, as well as simulation
+framework for simulation of the Chemical Reaction Networks. We rely on
+the Mathematica
+[package](http://users.ece.utexas.edu/~soloveichik/crnsimulator.html)
+developed by David Soloveichik for the simulation of Chemical Reaction
+Networks.
 
 ## Publication
 
