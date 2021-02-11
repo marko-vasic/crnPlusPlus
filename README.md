@@ -12,18 +12,33 @@ Networks.
 
 ## Publication
 
-If you are interested in knowing more about the project, please check
-our publication. If you would like to reference CRN++ in an academic
-publication, please cite our DNA publication:
+If you want to gain a more in-depth understanding of how our technique
+works, please take a look at our
+[publication](https://arxiv.org/pdf/1809.07430.pdf
+"publication"). Also, If you would like to reference CRN++ in an
+academic publication, please cite our journal publication by including
+the following bibtex entry:
 
 ```
-@inproceedings{VasicETAL18CrnPlusPlus,
-	title = {CRN++: Molecular Programming Language},
-	author = {Vasic, Marko and Soloveichik, David and Khurshid, Sarfraz},
-        booktitle = {Proceedings of the 24th International Conference on {DNA} Computing and Molecular Programming},
-        year = {2018}
+@article{vasic2020crn++,
+  title={CRN++: Molecular programming language},
+  author={Vasi{\'c}, Marko and Soloveichik, David and Khurshid, Sarfraz},
+  journal={Natural Computing},
+  volume={19},
+  number={2},
+  pages={391--407},
+  year={2020},
+  publisher={Springer}
 }
 ```
+<!-- ``` -->
+<!-- @inproceedings{VasicETAL18CrnPlusPlus, -->
+<!-- 	title = {CRN++: Molecular Programming Language}, -->
+<!-- 	author = {Vasic, Marko and Soloveichik, David and Khurshid, Sarfraz}, -->
+<!--         booktitle = {Proceedings of the 24th International Conference on {DNA} Computing and Molecular Programming}, -->
+<!--         year = {2018} -->
+<!-- } -->
+<!-- ``` -->
 
 ## Requirements
 
