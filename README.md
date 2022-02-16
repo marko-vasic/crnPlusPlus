@@ -63,5 +63,5 @@ follow the structure of examples under the examples directory.
 
 ## Acknowledgments
 
-Yaroslav Sergienko contributed to CRN++ by writing a 3D Engine using a ray tracing technique! 
+Yaroslav Sergienko contributed to CRN++ by writing a 3D Engine using a ray marching technique! 
 It is located in the files [engine.m](https://github.com/marko-vasic/crnPlusPlus/blob/master/examples/analog_algorithms/3dEngine.m) and [engine.nb](https://github.com/marko-vasic/crnPlusPlus/blob/master/examples/analog_algorithms/3dEngine.m).
