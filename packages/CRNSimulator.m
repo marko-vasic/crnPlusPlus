@@ -1,31 +1,56 @@
 (* ::Package:: *)
 
 (* ::Text:: *)
-(*Chemical Reaction Network (CRN) Simulator package is developed by David Soloveichik. Copyright 2009-2017. *)
+(*Chemical Reaction Network (CRN) Simulator package is developed by David Soloveichik. Copyright 2009-2021. *)
 (*http://users.ece.utexas.edu/~soloveichik/crnsimulator.html*)
+(**)
+(*ver 2.1 (Jan 8 2022)*)
+(**)
+(*- Removed dependency on the Notation package and switched to Format built-in functionality. (This was in part motivated by changes in behavior of AddInputAlias with Mathematica 13.) *)
+(*rxn and revrxn expressions in StandardForm are shown as standard chemical arrow notation. (Note that FullForm still preserves rxn and revrxn so all pattern matching works.) The shown arrow expressions cannot be modified but can be copied and pasted (this is done via Interpretation). *)
+(**)
+(*ver 2.0 (Mar 16 2021)*)
+
+
+(* ::Text:: *)
+(*Changes since last version:*)
+(**)
+(*- Allows wider range of expressions for species names including such things as a[x][y] and a[x+y].*)
+(**)
+(*- Introduces rxnl[] statements as an alternative way to express reactions with a list of reactants and products. For example,  rxnl[{a,b,a},{a,b},1], rxnl[{},{a},1]. Functions RxnsToRxnls and RxnlsToRxns convert between the "2a+b" and "{a,a,b}" representations.*)
+(**)
+(*- The order of species in rxn[] and revrxn[] statements is not preserved. In other words, rxn[b+a,a,1] is the same as rxn[a+b,a,1], and in fact if you type the first it will output the second. If you want to preserve the order syntactically for whatever reason you should use the rxnl[] statements. Note that this change might break some backward compatibility. *)
+(**)
+(*- Does some basic syntax error checking: eg if you type revrxn[] with just one rate constant it will spot this. It checks for the correct number of arguments for all statements and that rxnl contains lists for reactions and products.*)
+(**)
+(*- Allows an alternative way of defining initial values via "x[0]==4". If you have both conc[x, ...] statements and a x[0]==0 statement, then the conc[x, ...] statements are ignored. *)
+(**)
+(*- revrxn[] does not automatically get expanded to two rxn[] statements, and conc[{a,b},1] does not automatically get expanded to conc[a,1], conc[b,1].  Note that this change might break some backward compatibility. The idea is that if you typed revrxn[] or conc[{},...] you want to keep it that way syntactically. After all you can think of a reversible reaction as a specific kind of object that you may want to manipulate separately. There are now explicit commands ExpandRevrxns and ExpandConcs which do the expansion. (Of course, all the regular commands take either the original or expanded forms so you don't need to manually call these functions.)*)
 
 
 (* ::Section:: *)
 (*Public interface specification*)
 
 
-Notation`AutoLoadNotationPalette = False;
-Needs["Notation`"]
-BeginPackage["CRNSimulator`", {"Notation`"}];
+BeginPackage["CRNSimulator`"];
 
 
 rxn::usage="Represents an irreversible reaction. eg. rxn[a+b,c,1]";
 revrxn::usage="Represents a reversible reaction. eg. revrxn[a+b,c,1,1]";
 rxnl::usage="Represents a reaction in which reactants and products are represented as \
-lists. Unlike the \"+\" notation, this preserves the order of reactants and products.";
-conc::usage="Initial concentration: conc[x,10] or conc[{x,y},10].";
+lists. Unlike the \"+\" notation, this preserves the order of reactants and products. \
+eg. rxnl[{a,a,b},{a,b},1], rxnl[{},{a},1]. Functions RxnsToRxnls and RxnlsToRxns \
+convert between the rxnl[] notation and the rxn[] notation.";
+conc::usage="Initial concentration: conc[x,10] or conc[{x,y},10]. \
+Multiple conc[] statements for the same species are added up.";
 term::usage="Represents an additive term in the ODE for species x. \
 Species concentrations must be expressed in x[t] form. eg. term[x, -2 x[t]*y[t]]";
 
 
 SimulateRxnsys::usage=
 "SimulateRxnsys[rxnsys,endtime] simulates the reaction system rxnsys for time 0 \
-to endtime. In rxnsys, initial concentrations are specified by conc statements. \
+to endtime. In rxnsys, initial concentrations are specified by conc[] statements. \
+Multiple conc[] statements for the same species are added up. \
 If no initial condition is set for a species, its initial concentration is set to 0. \
 Rxnsys can also include term[] statements (e.g. term[x, -2 x[t]]) which are additively \
 combined together with term[]s derived from rxn[] statements. \
@@ -45,20 +70,29 @@ matching Mathematica string pattern pttrn. \
 can also do RegularExpression[\"o..d.\$.*\"].)";
 RxnsysToOdesys::usage=
 "RxnsysToOdesys[rxnsys,t] returns the ODEs corresponding to reaction system rxnsys, \
-with initial conditions. If no initial condition is set for a species, its initial \
-concentration is set to 0. \
-The time variable is given as the second argument; if omitted it is set to Global`t.";
+with initial conditions. The format of rxnsys is described in the documentation for \
+SimulateRxnsys. The time variable is given as the second argument; if omitted it is \
+set to Global`t.";
 RxnsToRxnls::usage=
 "Converts chemistry reaction representation to list reaction representation: eg rxn[x1+x2,x3,k] to rxn[{x1,x2},{x3},k].";
-SolveEquilibrium::usage=
-"Calculates concentrations of species at equilibrium"
-RxnsysToSrxnsys::usage=
-" Produces reactions in srxn[[reaction index],{x1,x2},{x3},k] format (\"structured reaction system\"). Removes any other statements. \
-  reaction index is 1-based"
+RxnlsToRxns::usage=
+"Converts list reaction representation to chemistry reaction representation: eg rxn[{x1,x2},{x3},k] to rxn[x1+x2,x3,k].";
+ExpandConcs::usage=
+"Expand conc[{a,b},1] to conc[a,1], conc[b,1].";
+ExpandRevrxns::usage=
+"Converts revrxn statements into a pair of rxn statements.";
 
 (*To use instead of Sequence in functions with Hold attribute but not HoldSequence,
 like Module, If, etc*)
 Seq:=Sequence 
+
+(* For debugging to export private symbols: 
+ProcessRxnlToTerms::usage="";
+ProcessTermsToOdes::usage="";
+ExpandConcs::usage="";
+MissingODEQ::usage="";
+InitialValueSetQ::usage="";
+*)
 
 
 (* ::Section:: *)
@@ -68,26 +102,32 @@ Seq:=Sequence
 Begin["`Private`"];
 
 
-Notation[ParsedBoxWrapper[RowBox[{"r_", " ", OverscriptBox["\[RightArrow]", RowBox[{" ", "k_", " "}]], " ", "p_", " "}]] \[DoubleLongLeftRightArrow] ParsedBoxWrapper[RowBox[{"rxn", "[", RowBox[{"r_", ",", "p_", ",", "k_"}], "]"}]]]
-Notation[ParsedBoxWrapper[RowBox[{"r_", " ", UnderoverscriptBox["\[RightArrowLeftArrow]", "k2_", "k1_"], " ", "p_", " "}]] \[DoubleLongLeftRightArrow] ParsedBoxWrapper[RowBox[{"revrxn", "[", RowBox[{"r_", ",", "p_", ",", "k1_", ",", "k2_"}], "]"}]]]
-AddInputAlias[ParsedBoxWrapper[RowBox[{"\[Placeholder]", " ", OverscriptBox["\[RightArrow]", RowBox[{" ", "\[Placeholder]", " "}]], " ", "\[Placeholder]", " "}]],"rxn"]
-AddInputAlias[ParsedBoxWrapper[RowBox[{"\[Placeholder]", " ", UnderoverscriptBox["\[RightArrowLeftArrow]", "\[Placeholder]", "\[Placeholder]"], " ", "\[Placeholder]", " "}]],"revrxn"]
+(* In StandardForm show rxn and revrxn using standard chemical arrow notation.
+(Note that FullForm still preserves rxn and revrxn so all pattern matching works.)
+The shown arrow expressions cannot be modified but can be copied and pasted.*)
+Format[rxn[rs_,ps_,k_],StandardForm]:=Interpretation[Row[{rs,Overscript[RawBoxes["\[LongRightArrow]"],k],ps}," "],rxn[rs,ps,k]]
+Format[revrxn[rs_,ps_,k1_,k2_],StandardForm]:=Interpretation[Row[{rs,Underoverscript[RawBoxes["\[LongLeftRightArrow]"],k2,k1],ps}," "],revrxn[rs,ps,k1,k2]]
 
 
+(* Does basic check to catch common syntax errors *)
+RxnsysToOdesys::rxnargs = "`1` is invalid as 3 arguments are expected";
+RxnsysToOdesys::revrxnargs = "`1` is invalid as 4 arguments are expected";
+RxnsysToOdesys::termargs = "`1` is invalid as 2 arguments are expected";
+RxnsysToOdesys::concargs = "`1` is invalid as 2 arguments are expected";
+RxnsysToOdesys::rxnlargs = "`1` is invalid as 3 arguments are expected";
+RxnsysToOdesys::rxnllists = "`1` is invalid as lists are expected for the first and second arguments";
+CheckSyntaxErrors[rxnsys_]:=
+ If[FailureQ[
+  Check[
+   Message[RxnsysToOdesys::rxnargs, #]&  /@  Cases[Cases[rxnsys, rxn[___]], Except[rxn[_,_,_]]];
+   Message[RxnsysToOdesys::revrxnargs, #]&  /@  Cases[Cases[rxnsys, revrxn[___]], Except[revrxn[_,_,_,_]]];
+   Message[RxnsysToOdesys::termargs, #]&  /@  Cases[Cases[rxnsys, term[___]], Except[term[_,_]]];
+   Message[RxnsysToOdesys::concargs, #]&  /@  Cases[Cases[rxnsys, conc[___]], Except[conc[_,_]]];
+   Message[RxnsysToOdesys::rxnlargs, #]&  /@  Cases[Cases[rxnsys, rxnl[___]], Except[rxnl[_,_,_]]];
+   Message[RxnsysToOdesys::rxnllists, #]&  /@  Cases[Cases[rxnsys, rxnl[_,_,_]], Except[rxnl[{___},{___},_]]],
+   $Failed]],
+  Abort[]]
 
-(* People are often confused about rxn[0,x,1] instead of rxn[1,x,1]. So we automatically replace any integer with 1. *)
-rxn[Except[1,_Integer],ps_,k_]:=rxn[1,ps,k]
-
-
-
-
-(* Standardize rxnsys for RxnsysToOdesys. This means: *)
-(* convert any rxnl to rxn, 
-   expand revrxns, 
-   expand conc
-*)
-StandardizeRxnsys[rxnsys_]:=
-  rxnsys // RxnlsToRxns // ExpandRevrxns // ExpandConcs
 
 (* Expand conc[{a,b},1] to conc[a,1], conc[b,1] *)
 ExpandConcs[rxnsys_]:=
@@ -98,34 +138,38 @@ ExpandRevrxns[rxnsys_]:=
  Replace[rxnsys, revrxn[r_,p_,k1_,k2_] :> Sequence[rxn[r,p,k1],rxn[p,r,k2]], {1}]
 
 (* Converts rxn and revrxn statements to rxnl statements *)
-RxnsToRxnls[rxnsys_]:=
+RxnsToRxnls[rxnsys_]:=(
+ CheckSyntaxErrors[rxnsys];
  Replace[ExpandRevrxns[rxnsys],
          rxn[rs_, ps_, k_] :> 
 				rxnl[Replace[Replace[rs, {ss_Plus:>List@@ss,s_:>{s}}], {_Integer -> Seq[], c_Integer*s_ :> Seq @@ Table[s, {c}], s_ :> s},{1}], 
 				     Replace[Replace[ps, {ss_Plus:>List@@ss,s_:>{s}}], {_Integer -> Seq[], c_Integer*s_ :> Seq @@ Table[s, {c}], s_ :> s},{1}], 
 					 k],
-		 {1}]
+		 {1}])
 
-(* Converts rxnl statements to rxn statements, and expands any existing revrxn statements *)
-RxnlsToRxns[rxnsys_]:=
+(* Converts rxnl statements to rxn statements *)
+RxnlsToRxns[rxnsys_]:=(
+ CheckSyntaxErrors[rxnsys];
  Replace[rxnsys,
          rxnl[rs_,ps_,k_] :> rxn[Plus@@rs,Plus@@ps,k],
-         {1}]
+         {1}])
 
 
 (* Species as products or reactants in rxn, revrxn, rxnl statements, as well as defined in x'[t]== or x[t]== statements \
 or term statements, or conc statements. 
 Note: species are sorted (by Union[])
 *)
-SpeciesInRxnsys[rxnsys_]:=
+SpeciesInRxnsys[rxnsys_]:=(
+ CheckSyntaxErrors[rxnsys];
  Union[
  	Cases[RxnsToRxnls[rxnsys],rxnl[rs_,ps_,k_]:>Sequence@@Union[rs,ps]],
- 	Cases[ExpandConcs[rxnsys], x_'[_]==_ | x_[_]==_ | term[x_,__] | conc[x_,_] :> x]]
+ 	Cases[ExpandConcs[rxnsys], x_'[_]==_ | x_[_]==_ | term[x_,__] | conc[x_,_] :> x]])
 SpeciesInRxnsys[rsys_,pattern_]:=Cases[SpeciesInRxnsys[rsys],pattern]
 SpeciesInRxnsysStringPattern[rsys_,pattern_]:=Select[SpeciesInRxnsys[rsys],StringMatchQ[ToString[#],pattern]&]
 
 
-(* Check if a species' initial value is set in a odesys *) 	
+(* Check if a species' initial value is set in a odesys. 
+Returns true also if species governed by direct equation x[t]\[Equal]... (which implies initial value) *) 	
 InitialValueSetQ[odesys_,x_]:=
  MemberQ[odesys,x[_]==_]
 
@@ -134,26 +178,39 @@ MissingODEQ[odesys_,x_,t_Symbol]:=
  !MemberQ[odesys, D[x[t],t]==_ | x[t]==_]  	
 
 RxnsysToOdesys[rxnsysInput_,t_Symbol:Global`t]:=
- Module[
-  {rxnsys=StandardizeRxnsys[rxnsysInput], spcs=SpeciesInRxnsys[rxnsysInput], concs, termssys, odesys, eqsFromTerms, eqsFromConcs},
+ Module[{rxnsys, spcs, concsAssoc, terms, odesys, eqsFromTerms, initsFromConcs, initsFromEqs, eqsFromEqs},
+  
+  spcs=SpeciesInRxnsys[rxnsysInput]; (* Note: Check for syntax errors inside of SpeciesInRxnsys; don't need explicit call *)
+  
+  (* Standardize rxnsys by converting rxn and revrxn to rxnl, and expanding concs over lists *) 
+  rxnsys = rxnsysInput // RxnsToRxnls // ExpandConcs;
 
-  (* extract conc statements and sum them for same species *)
-  concs = conc[#[[1,1]],Total[#[[;;,2]]]]&/@GatherBy[Cases[rxnsys,conc[__]],Extract[{1}]];
+  (* Extract conc statements and sum them for same species. Returns an association, eg: \[LeftAssociation]a\[Rule]-9,b\[Rule]3\[RightAssociation] 
+  *)
+  concsAssoc = GroupBy[Cases[rxnsys,conc[__]],First->Last,Total];
+  
+  (* Extract any initial values x[0]=.... If present these should override any concs[] *)
+  initsFromEqs = Cases[rxnsys, _[0]==_];
+  concsAssoc = KeyDrop[concsAssoc, Cases[initsFromEqs, x_[0]==_ :> x]]; 
 
-  (* Convert rxn[] to term[] statements *)
-  termssys=rxnsys /. rxn:rxn[__]:>Seq@@ProcessRxnToTerms[rxn,t];
+  (* Get term[] statements from rxnl[] statements and existing term[] statements *)
+  terms=Join[
+    Cases[rxnsys, rxnl:rxnl[__]:>Seq@@ProcessRxnlToTerms[rxnl,t]],
+    Cases[rxnsys, term[__]]];
 
   (* ODEs from parsing terms *)
-  eqsFromTerms = ProcessTermsToOdes[Cases[termssys,term[__]],t]; 
-  (* initial values from parsing conc statements *)
-  eqsFromConcs = Cases[concs,conc[x_,c_]:>x[0]==c]; 
-
-  (* Remove term and conc statements from rxnsys and add eqs generated from them. 
-     If there is a conflict, use pass-through equations *)
-  odesys = DeleteCases[termssys, term[__]|conc[__]];
-  odesys = Join[odesys,
-                DeleteCases[eqsFromTerms, Alternatives@@(#'[t]==_& /@ Cases[odesys,(x_'[t]|x_[t])==_:>x])],
-                eqsFromConcs];
+  eqsFromTerms = ProcessTermsToOdes[terms,t]; 
+  (* initial values from concsAssoc *)
+  initsFromConcs = KeyValueMap[#1[0]==#2&,concsAssoc]; 
+  
+  (* direct definitions of x'[t]\[Equal]... or x[t]\[Equal]... *)
+  eqsFromEqs = Cases[rxnsys, _'[t]==_ | _[t]==_];
+  
+  (* create odesys *)
+  odesys = Join[eqsFromTerms, initsFromConcs, initsFromEqs, eqsFromEqs];
+  
+  (* if have direct definition x[t]\[Equal]... then delete any x'[t]\[Equal]... and any initial value x[0]\[Equal]... *)
+  odesys = DeleteCases[odesys, Alternatives@@Cases[eqsFromEqs, x_[t]==_ :> (x'[t]==_|x[0]==_)]];
      
   (* For species still without initial values, add zeros *)
   odesys = Join[odesys, #[0]==0& /@ Select[spcs, !InitialValueSetQ[odesys,#]&]];
@@ -168,194 +225,23 @@ ProcessTermsToOdes[terms_,t_Symbol]:=
 Module[{spcs=Union[Cases[terms,term[s_,_]:>s]]},
 #'[t]==Total[Cases[terms,term[#,rate_]:>rate]] & /@ spcs];
 
-(* Create list of term[] statements from parsing a rxn statement *) 
-ProcessRxnToTerms[reaction:rxn[r_,p_,k_],t_Symbol]:=
-Module[{spcs=SpeciesInRxnsys[{reaction}], rrate, spccoeffs,terms},
+(* Create list of term[] statements from a rxnl statement 
+Note: works if rs is {}. Does't work for {2a,b}, needs to be {a,a,b}
+*)
+ProcessRxnlToTerms[reaction:rxnl[rs_,ps_,k_],t_Symbol]:=
+Module[{spcs=SpeciesInRxnsys[{reaction}], rrate, spccoeffs},
 (* compute rate of this reaction *)
-rrate = k (r/.{Times[b_,s_]:>s^b,Plus->Times});
+rrate = k * Times@@(#[t]&/@rs);
 (*for each species, get a net coefficient*)
-spccoeffs=Coefficient[p-r,#]& /@ spcs;
+spccoeffs=Coefficient[Plus@@ps-Plus@@rs,#]& /@ spcs;
 (*create term for each species*)
-terms=MapThread[term[#1,#2*rrate]&,{spcs, spccoeffs}];
-(*change all species variables in the second arg in term[] to be functions of t*)
-terms/.term[spc_,rate_]:>term[spc,rate/.s_/;MemberQ[spcs,s]:>s[t]]];
+MapThread[term[#1,#2*rrate]&,{spcs, spccoeffs}]]
 
 
 SimulateRxnsys[rxnsys_,endtime_,opts:OptionsPattern[NDSolve]]:=
  Module[{spcs=SpeciesInRxnsys[rxnsys],odesys=RxnsysToOdesys[rxnsys,Global`t]},
  Quiet[NDSolve[odesys, spcs, {Global`t,0,endtime},opts,MaxSteps->Infinity,AccuracyGoal->MachinePrecision],{NDSolve::"precw"}][[1]]]
 
-
-RxnsysToSrxnsys[rsys_] :=
-    Module[{i = 1},
-        Cases[
-        rsys, 
-        rxn[rs_, ps_, k_] :>
-        srxn[i++,
-        {Unevaluated[rs] /. {Plus -> Seq, c_Integer*s_ :> Seq @@ Table[s, {c}]}},
-        {Unevaluated[ps] /. {Plus -> Seq, c_Integer*s_ :> Seq @@ Table[s, {c}]}},
-        k]
-        ]
-    ]
-    
-(* 
-  Returns state change vectors for each reaction. The order of species is determined by Sort[SpeciesInRxnsys[rsys]]
-  Example, for following reaction system
-  rxn1: a -> b
-  rxn2: a+c -> c
-  Result is:
-  {
-    {-1,1,0},
-    {-1,0,0}
-  }
-  Each row coresponds to the reaction, and elements in the row to species
-*)
-RxnsysToStateChangeVectors[rsys_] :=
-    Module[ {
-    spcs = Sort[SpeciesInRxnsys[rsys]], 
-       srxnsys = RxnsysToSrxnsys[rsys],
-       symbolicNetChanges
-    },
-        symbolicNetChanges = Cases[srxnsys, srxn[_, r_, p_, _] :> Plus @@ p - Plus @@ r];
-        Outer[Coefficient[#1, #2] &, symbolicNetChanges, spcs]
-    ]
-    
-FluxForMatchingReactants[rsys_, fluxvars_] :=
-    Module[{
-        equations,
-        reactionsGroupedByReactants,
-        reactions,
-        index1,
-        index2,
-        reaction1,
-        reaction2,
-        reaction1Index,
-        reaction2Index,
-        reaction1Rate,
-        reaction2Rate
-    },
-    	equations={};
-		reactionsGroupedByReactants=GatherBy[
-  			Cases[RxnsysToSrxnsys[rsys], srxn[index_,reactants_,_,rate_]->{reactants, index, rate}],
-  			First
-		];
-		For[i=1, i <= Length[reactionsGroupedByReactants], i++, 
-  			reactions=reactionsGroupedByReactants[[i]];
-  			If[Length[reactions] > 1,
-    			For[index1 = 1, index1 <= Length[reactions], index1++,
-      				For[index2 = index1 + 1, index2 <= Length[reactions], index2++,
-        				reaction1 = reactions[[index1]];
-        				reaction2 = reactions[[index2]];
-        				reaction1Index = reaction1[[2]];
-        				reaction2Index = reaction2[[2]];
-        				reaction1Rate = reaction1[[3]];
-        				reaction2Rate = reaction2[[3]];
-        				equations=Append[equations,fluxvars[[reaction1Index]]/fluxvars[[reaction2Index]]==reaction1Rate/reaction2Rate];
-      				]
-    			]
-			]
-		];
-		Return[equations];
-    ]
-    
-FluxForRevRxns[rsys_, fluxvars_] :=
-    Module[{
-       i,
-       j,
-       srxnsys = RxnsysToSrxnsys[rsys],
-       reaction1,
-       index1,
-       reactants1,
-       products1,
-       reaction2,
-       index2,
-       reactants2,
-       products2,
-       equations
-    },
-    	equations={};
-    	For[i = 1, i <= Length[srxnsys], i++,
-    	    reaction1 = srxnsys[[i]];
-    	    index1 = reaction1[[1]];
-    	    reactants1 = reaction1[[2]];
-    	    products1 = reaction1[[3]];
-			
-    	    For[j = i + 1, j <= Length[srxnsys], j++,
-    	        reaction2 = srxnsys[[j]];
-	    		index2 = reaction2[[1]];
-    	    	reactants2 = reaction2[[2]];
-    	    	products2 = reaction2[[3]];
-    	    	If[(reactants1 == products2) && (reactants2 == products1),
-					equations = Append[equations, fluxvars[[index2]] == 0];
-    	    	]
-    	    ]
-    	];
-    	Return[equations];
-    ]
-    
-RevRxnConservationEquations[rsys_, fluxVars_] :=
-	Module[ {
-	    spcs = Sort[SpeciesInRxnsys[rsys]],
-	    initialConcentrations,
-	    reversibleReactions,
-	    expandedReactions,
-	    conservationEquations,
-	    i,
-	    equations
-	},
-		If[Count[rsys, revrxn[___]] == 0, Return[{}]];
-		initialConcentrations = Plus @@ Cases[rsys, conc[#, c_]:>c] & /@ spcs;
-  		reversibleReactions=Flatten[Cases[rsys, revrxn[reactants_,products_,k1_,k2_]->{revrxn[reactants, products, k1, k2]}]];
-  		expandedReactions=ExpandRevrxns[reversibleReactions];
-  		equations = {};
-  		For[i = 2, i <= Length[fluxVars], i += 2,
-  		    equations = Append[equations, fluxVars[[i]] == 0];
-  		];
-  		conservationEquations = Thread[spcs==fluxVars.RxnsysToStateChangeVectors[expandedReactions] + initialConcentrations];
-  		Return[Join[equations,conservationEquations]];
-	]
-    
-SolveEquilibrium[rsys_] :=
-    Module[ {
-    spcs = Sort[SpeciesInRxnsys[rsys]],
-    odesys = RxnsysToOdesys[rsys],
-    numrxns,
-    initialConcentrations, (* initial values *)
-    rates, (* reaction rates *)
-    fluxvars,  (* flux[i] variables capturing flux of each reaction *)
-    sseqns, (* steady state equations *)
-    conservationEquations, (* conservation equations *)
-    identicalReactantsEquations, (* flux equations for reactions with equal reactants *)
-	concPositive,
-	initConcPositive,
-	fluxNonNegative,
-    ratesPositive, (* inequalities enforcing positivity of reaction rates *)
-    assumptions,
-    sol,
-    fluxForRevRxns,
-    expandedRsys
-    },
-    	expandedRsys = ExpandRevrxns[rsys];
-    	numrxns = Count[expandedRsys, rxn[___]];
-        initialConcentrations = Plus @@ Cases[rsys, conc[#, c_]:>c] & /@ spcs;
-        rates = List @@ Cases[expandedRsys, rxn[a_, b_, k_]:>k];
-        sseqns = Cases[odesys,_'[Global`t]==rhs_:>0==(rhs/.s_[Global`t]:>s)];
-        fluxvars = Table[flux[i],{i,1,numrxns}];
-        conservationEquations = Thread[spcs==fluxvars.RxnsysToStateChangeVectors[expandedRsys] + initialConcentrations];
-        identicalReactantsEquations = FluxForMatchingReactants[expandedRsys, fluxvars];
-        fluxForRevRxns = FluxForRevRxns[expandedRsys, fluxvars];
-        concPositive = #>=0&/@Join[spcs];
-        initConcPositive = #>0&/@Join[initialConcentrations];
-        fluxNonNegative = #>=0&/@Join[fluxvars];
-        ratesPositive = #>0&/@rates;
-        assumptions = Join[concPositive, initConcPositive, fluxNonNegative, ratesPositive];
-        sol = Solve[
-            Join[sseqns, conservationEquations, fluxForRevRxns, identicalReactantsEquations, assumptions],
-            Join[spcs, fluxvars],
-            Reals
-        ];
-        Return[Simplify[sol, assumptions]];
-    ]
 
 End[];
 EndPackage[];
